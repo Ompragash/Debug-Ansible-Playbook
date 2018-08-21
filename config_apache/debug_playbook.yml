@@ -1,0 +1,43 @@
+---
+- name: Debugging Broken Playbook
+  hosts: dev
+  vars:
+    - packages:
+        web: httpd
+  tasks:
+  - name: Install {{packages.web}}
+    yum:
+      name: "{{item}}"
+      state: latest
+    with_items:
+      - {{packages.web}}
+
+  - name: start and enable {{packages.web}} service
+    service:
+      name: {{item}}
+      state: started
+      enabled: True
+    with_items:
+      - "{{packages.web}}"
+
+  - name: Httpd conf
+    blockinfile:
+      content: |
+        <VirtualHost *:80>
+        servername localhost
+        documentroot /var/www/html
+        </VirtualHost>
+      path: /etc/httpd/conf/httpd.conf
+    notify:
+      - restart httpd
+
+  - name: Copy template file
+    template:
+      src: index.html.j2
+      dest: /var/www/html/index.html
+
+  handlers:
+  - name: restart http
+    service:
+      name: "{{packages.web}}"
+      state: restarted
